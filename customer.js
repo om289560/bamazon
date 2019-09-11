@@ -1,15 +1,16 @@
-var mysql = nrequire("mysql");
+var mysql = require("mysql");
 var inquirer = "inquirer";
-var table = require("cli-table");
+var Table = require("cli-table");
 
 var connection = mysql.createConnection({
   host: "local host",
-  user: "",
+  user: "root",
   password: "password",
-  database: "bamazon",
+  database: "bamazon_DB",
   port: 3000
 });
 connection.connect();
+console.table();
 
 var display = function() {
   connection.query("SELECT * FROM products", function(err, res) {
@@ -18,6 +19,10 @@ var display = function() {
     console.log("");
     console.log("Find Your Product Below");
     console.log("");
+    for (var i = 0; i < res.length; i++) {
+      table.push([res[i].id, res[i].products_name, res[i].price]);
+    }
+    console.table(display);
   });
 
   var table = new Table({
@@ -29,38 +34,62 @@ var display = function() {
       compact: true
     }
   });
-  for (var i = 0; i < res.length; i++) {
-    table.push([res[i].id, res[i].products_name, res[i].price]);
-  }
   console.log(table.toString());
   console.log("");
-};
 
-var shopping = function() {
-  inquirer
-    .prompt({
-      name: "porductToBuy",
-      input: "input",
-      message: "Please enter the Product Id of the item you wishto purchase."
-    })
-    .then(function(answer1) {
-      var selection = answer1.productToBuy;
-      connection.query(
-        "SELECT * FROM products WHERE Id =?",
-        selection,
-        function(err, res) {
-          if (err) throw err;
-          if (res.lenght === 0) {
-            console.log(
-              "THat Product does not exist, Please enter a Id from list above"
-            );
+  var shopping = function() {
+    inquirer
+      .prompt({
+        name: "porductToBuy",
+        input: "input",
+        message: "Please enter the Product Id of the item you wishto purchase."
+      })
+      .then(function(answer1) {
+        var selection = answer1.productToBuy;
+        connection.query(
+          "SELECT * FROM products WHERE Id =?",
+          selection,
+          function(err, res) {
+            if (err) throw err;
+            if (res.lenght === 0) {
+              console.log(
+                "THat Product does not exist, Please enter a Id from list above"
+              );
 
-            shopping();
-          } else {
-            console.log("All is good");
+              shopping();
+            } else {
+              inquirer.prompt({
+                name: "quantity",
+                input: "input",
+                message:
+                  "How many items would you like to purchase?"
+              }).then(function(answer2){
+                var quantity = answer2.quantity;
+                if (quantity > res[0].stock_quantity){
+                  console.log("we're sorry, we only have" + res[0].stock_quantity + "items of the product selected");
+                } else {
+                  console.log("");
+                  console.log(res[0].products_name + "purchased");
+                  console.log(quantity + "qty @ $" + res[0].price);
+
+                  var newQuantity = res[0].stock_quantity - quantity;
+                  connection.query(
+                    "UPDATE products SET stock_qauntity =" + newQuantity + "WHERE id= " + res[0].id, function(err, resUpdate) {
+                      if (err) throw err;
+                      console.log("");
+                      console.log("Your Order has been Processed");
+                      console.log("Thank you for your purchase");
+                      console.log("");
+                      connection.end();
+
+                    }
+                  )
+                }
+              });
+            }
           }
-        }
-      );
-    });
+        );
+      });
+  };
 };
 display();
